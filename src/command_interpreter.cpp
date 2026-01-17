@@ -40,8 +40,8 @@ TestCommand CommandInterpreter::interpret(const std::map<std::string, std::strin
             break;
 
         case BehaviorType::CLOSE_AFTER_PARTIAL:
-            cmd.bytes_before_close = parseInteger(
-                query_params.count("bytes") ? query_params.at("bytes") : "", 0);
+            cmd.bytes_before_close = static_cast<size_t>(parseInteger(
+                query_params.count("bytes") ? query_params.at("bytes") : "", 0));
             break;
 
         case BehaviorType::SLOW_RESPONSE:

@@ -35,7 +35,7 @@ public:
     void reset();
 
     // Get error message if parse failed
-    std::string getErrorMessage() const;
+    const std::string& getErrorMessage() const;
 
 private:
     HttpRequest request_;

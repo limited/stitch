@@ -36,7 +36,7 @@ bool SocketManager::bind(const std::string& host, int port) {
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
+    addr.sin_port = htons(static_cast<uint16_t>(port));
 
     if (host == "0.0.0.0" || host.empty()) {
         addr.sin_addr.s_addr = INADDR_ANY;
@@ -49,7 +49,7 @@ bool SocketManager::bind(const std::string& host, int port) {
     }
 
     // Bind socket
-    if (::bind(listen_fd_, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+    if (::bind(listen_fd_, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
         ::close(listen_fd_);
         listen_fd_ = -1;
         return false;
@@ -77,7 +77,7 @@ int SocketManager::acceptConnection() {
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
 
-    int client_fd = accept(listen_fd_, (struct sockaddr*)&client_addr, &client_len);
+    int client_fd = accept(listen_fd_, reinterpret_cast<struct sockaddr*>(&client_addr), &client_len);
     if (client_fd < 0) {
         return -1;
     }

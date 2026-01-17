@@ -26,8 +26,8 @@ void ConnectionHandler::onReadable() {
     ssize_t n = recv(socket_fd_, buffer, sizeof(buffer), 0);
 
     if (n < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            // No more data available right now
+        if (errno == EAGAIN) {
+            // No more data available right now (EAGAIN == EWOULDBLOCK on Linux)
             return;
         }
         // Error occurred
@@ -42,7 +42,7 @@ void ConnectionHandler::onReadable() {
     }
 
     // Feed data to parser
-    HttpParser::ParseResult result = parser_.parse(buffer, n);
+    HttpParser::ParseResult result = parser_.parse(buffer, static_cast<size_t>(n));
 
     if (result == HttpParser::ParseResult::COMPLETE) {
         // Request fully parsed, process it
@@ -133,14 +133,14 @@ void ConnectionHandler::handleRequest() {
         size_t headers_end = response_data_.find("\r\n\r\n");
         if (headers_end != std::string::npos) {
             // Truncate to just headers
-            response_data_ = response_data_.substr(0, headers_end + 4);
+            response_data_.resize(headers_end + 4);
         }
     }
 
     // Check for partial close behavior
     if (current_command_.behavior == BehaviorType::CLOSE_AFTER_PARTIAL) {
         if (response_data_.length() > current_command_.bytes_before_close) {
-            response_data_ = response_data_.substr(0, current_command_.bytes_before_close);
+            response_data_.resize(current_command_.bytes_before_close);
         }
     }
 
@@ -168,8 +168,8 @@ void ConnectionHandler::sendResponse() {
         ssize_t n = send(socket_fd_, response_data_.data() + bytes_sent_, to_send, 0);
 
         if (n < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                // Socket buffer full, wait for next writable event
+            if (errno == EAGAIN) {
+                // Socket buffer full, wait for next writable event (EAGAIN == EWOULDBLOCK on Linux)
                 return;
             }
             // Error occurred
@@ -177,7 +177,7 @@ void ConnectionHandler::sendResponse() {
             return;
         }
 
-        bytes_sent_ += n;
+        bytes_sent_ += static_cast<size_t>(n);
 
         // For slow behaviors, break after each send to simulate slow sending
         if ((current_command_.behavior == BehaviorType::SLOW_HEADERS ||

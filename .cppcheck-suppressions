@@ -1,0 +1,13 @@
+# Cppcheck suppressions file
+# Format: [error id]:[filename]:[line]
+# Use '*' as wildcard for filename
+
+# Suppress missing include system headers
+missingIncludeSystem
+
+# Suppress unused function warnings (they might be used in tests)
+unusedFunction
+
+# Suppress style warnings about C-style casts in system headers
+cstyleCast:*/sys/*
+cstyleCast:*/bits/*

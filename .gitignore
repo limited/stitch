@@ -54,3 +54,8 @@ Testing/
 *.gcov
 *.gcda
 *.gcno
+
+# Analysis output
+valgrind-out.txt
+cppcheck-report.xml
+*.cppcheck

@@ -113,6 +113,7 @@ HttpResponse ResponseGenerator::createErrorResponse(int code, const std::string&
 }
 
 HttpResponse ResponseGenerator::createMalformedResponse(const TestCommand& cmd) {
+    (void)cmd;  // Unused parameter - reserved for future use
     HttpResponse response;
     response.status_code = 200;
     response.reason_phrase = "OK";

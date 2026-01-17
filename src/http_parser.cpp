@@ -81,7 +81,7 @@ const HttpRequest& HttpParser::getRequest() const {
     return request_;
 }
 
-std::string HttpParser::getErrorMessage() const {
+const std::string& HttpParser::getErrorMessage() const {
     return error_message_;
 }
 
