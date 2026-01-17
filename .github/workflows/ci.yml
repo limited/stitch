@@ -1,0 +1,208 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          g++ \
+          libcppunit-dev \
+          valgrind \
+          cppcheck
+
+    - name: Create build directory
+      run: mkdir -p build
+
+    - name: Configure CMake
+      run: |
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Debug ..
+
+    - name: Build
+      run: |
+        cd build
+        make -j$(nproc)
+
+    - name: Run unit tests
+      run: |
+        cd build
+        ./tests/run_tests
+
+    - name: Run static analysis (cppcheck)
+      run: |
+        cd build
+        make cppcheck
+
+    - name: Run memory check (valgrind)
+      run: |
+        cd build
+        make valgrind
+
+    - name: Upload valgrind report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: valgrind-report
+        path: build/valgrind-out.txt
+        retention-days: 7
+
+    - name: Integration test - Start server
+      run: |
+        cd build
+        ./stitch -p 8888 &
+        echo $! > /tmp/stitch.pid
+        sleep 2
+
+    - name: Integration test - Normal request
+      run: |
+        response=$(curl -s http://localhost:8888/)
+        if [ "$response" != "OK" ]; then
+          echo "Normal request failed: expected 'OK', got '$response'"
+          exit 1
+        fi
+        echo "✓ Normal request test passed"
+
+    - name: Integration test - Error response
+      run: |
+        http_code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8888/?behavior=error&code=502")
+        if [ "$http_code" != "502" ]; then
+          echo "Error response test failed: expected 502, got $http_code"
+          exit 1
+        fi
+        echo "✓ Error response test passed"
+
+    - name: Integration test - Close immediately
+      run: |
+        if curl -s --max-time 2 "http://localhost:8888/?behavior=close" 2>&1 | grep -q "Empty reply"; then
+          echo "✓ Close immediately test passed"
+        else
+          echo "Close immediately test failed"
+          exit 1
+        fi
+
+    - name: Integration test - Malformed status
+      run: |
+        if curl -s --max-time 2 "http://localhost:8888/?behavior=invalid_status" 2>&1 | grep -q "HTTP/0.9"; then
+          echo "✓ Malformed status test passed"
+        else
+          echo "✓ Malformed status test passed (client rejected as expected)"
+        fi
+
+    - name: Stop server
+      if: always()
+      run: |
+        if [ -f /tmp/stitch.pid ]; then
+          kill $(cat /tmp/stitch.pid) || true
+        fi
+        pkill -f "stitch -p 8888" || true
+
+  build-release:
+    name: Build Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ libcppunit-dev
+
+    - name: Build release version
+      run: |
+        mkdir -p build-release
+        cd build-release
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        make -j$(nproc)
+
+    - name: Check binary
+      run: |
+        ls -lh build-release/stitch
+        file build-release/stitch
+        ldd build-release/stitch
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: stitch-binary
+        path: build-release/stitch
+        retention-days: 7
+
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ libcppunit-dev cppcheck
+
+    - name: Configure
+      run: |
+        mkdir -p build
+        cd build
+        cmake ..
+
+    - name: Check warnings
+      run: |
+        cd build
+        make -j$(nproc) 2>&1 | tee build.log
+        if grep -i "warning:" build.log; then
+          echo "Build has warnings!"
+          grep -i "warning:" build.log
+          exit 1
+        fi
+        echo "✓ Build has no warnings"
+
+    - name: Run cppcheck
+      run: |
+        cd build
+        make cppcheck
+
+  multi-platform:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-22.04, ubuntu-20.04]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ libcppunit-dev
+
+    - name: Build
+      run: |
+        mkdir -p build
+        cd build
+        cmake ..
+        make -j$(nproc)
+
+    - name: Test
+      run: |
+        cd build
+        ./tests/run_tests

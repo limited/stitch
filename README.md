@@ -1,6 +1,13 @@
 # Stitch - HTTP Negative Testing Utility
 
+[![CI](https://github.com/limited/stitch/actions/workflows/ci.yml/badge.svg)](https://github.com/limited/stitch/actions/workflows/ci.yml)
+
 Stitch is a C++ HTTP server testing utility designed for negative testing and fuzzing HTTP proxies. It simulates various edge cases, malformed responses, and error conditions that can help test the robustness of HTTP clients and proxies.
+
+## Documentation
+
+- **[USAGE.md](USAGE.md)** - Complete usage guide with all command-line options and query parameters
+- **[DESIGN.md](DESIGN.md)** - Architecture and implementation details
 
 ## Features
 
